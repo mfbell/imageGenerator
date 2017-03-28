@@ -98,3 +98,13 @@ class ImGen():
         im.save(path, ext)
         system(path)
         
+        
+if __name__ == "__main__":
+    info = ["imGen, import to use.",
+            "Version {0}, {1}".format(VERSION, STATUS),
+            "Written by {0}".format(AUTHOR),
+            "Licensed under {0}".format(LICENSE),
+            "SKU: {0}".format(SKU),
+            "URL: {0}".format(URL)]
+    for line in info:
+        print(line)

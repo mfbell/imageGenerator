@@ -1,103 +1,153 @@
 """Tree like image generator.
 
-You need Pillow to be installed for this to work.
+In development and I don't know how it works either...
+
+You need Python Pillow to be installed for this to work.
 
 """
 
 AUTHOR = "mtech0 https://github.com/mtech0"
-LICENSE = "TBC"
-VERSION = "0.0.0"
+LICENSE = "To be comfirmed, all rights reserved."
+VERSION = "0.4.1"
 STATUS = "Dev"
 SKU = "Main"
 URL = "n/a"
 
-
 from PIL import Image
-from random import random
+from random import random, randint, shuffle
 from os import system
-
-class ImGen():
-    """The main class."""
+import sys
+        
+        
+class TreeGen():
+    """Generate a image in a tree growth like way.
+    - Or was the intention."""
+   
+    def __init__(self, colours=[], hight=512, width=512, bg=True, fgcc=0.005, bgcc=0.004, path="test.jpg", ext="JPEG", open=True, rl=None, xy=None):
+        """Main stuff.
+        
+        See README.md for documentation.
+        
+        """
+        colourCount = 2
+        if xy == "c":
+            startxy = (round(width/2), round(hight/2))
+        elif xy:
+            if not isinstance(xy, tuple) or len(xy) != 2:
+                raise InvalidArg("{0} is not a valid XY turple.".format(xy))
+            elif not isinstance(xy[0], int) or not isinstance(xy[1], int):
+                raise InvalidArg("A value in {0} is not an interger.".format(xy))
+            elif xy[0] < 0 or xy[1] < 0 or xy[0] > width or xy[1] > hight:
+                raise InvalidArg("{0} out of range.".format(xy))
+            else:
+                startxy = xy
+        else:
+            startxy = (randint(0,width-1), randint(0, hight-1))
+        for colour in colours:
+            if not isinstance(colour, tuple) or len(colour) != 3:
+                raise InvalidArg("{0} is not a valid RGB turple.".format(colour))
+            for value in colour:
+                if not isinstance(value, int):
+                    raise InvalidArg("{0} in {1} is not an interger.".format(value, colour))
+                if value < 0 or value > 255:
+                    raise InvalidArg("{0} in {1} out of colour range.".format(value, colour))
+        while len(colours) < colourCount:
+            colours.append((randint(0,255), randint(0,255), randint(0,255)))
+        self.im = Image.new("RGB", (hight, width))
+        self.pix = self.im.load()
+        self.colours = colours
+        self.hight = hight
+        self.width = width
+        self.FGColourChance = fgcc
+        self.BGColourChance = bgcc
+        if rl:
+            self.recursionlimit = rl # I got stack overflow at 2581.
+            sys.setrecursionlimit(self.recursionlimit)
+        else:
+            self.recursionlimit = sys.getrecursionlimit()
+        self.tree(startxy)
+        if bg:
+            for x in range(hight):
+                for y in range(width):
+                    if self.pix[x,y] == (0,0,0):
+                        self.pix[x,y] = self.colours[1]
+        self.im.save(path, ext)
+        if open:
+            system(path)
+        print(startxy)
+        return None
+      
+           
+    def pick(self, xy):
+        """Picks the colour for xy."""
+        SColourChance = 1-self.FGColourChance-self.BGColourChance
+        takefrom = [(xy[0]-1, xy[1]-1), (xy[0], xy[1]-1), (xy[0]+1, xy[1]-1), (xy[0]-1, xy[1]), (xy[0]+1, xy[1]), (xy[0]-1, xy[1]+1), (xy[0], xy[1]+1), (xy[0]+1, xy[1]+1)]
+        scolours = {self.colours[0]: self.FGColourChance, self.colours[1]: self.BGColourChance}
+        for _xy in takefrom:
+            try:
+                pixColour = self.pix[_xy]
+                try:
+                    scolours[pixColour] += SColourChance/len(takefrom)
+                except KeyError:
+                    scolours[pixColour] = SColourChance/len(takefrom)
+            except IndexError:
+                #if random() < 1/(self.FGColourChance+self.BGColourChance)*self.FGColourChance:
+                #    pixColour = self.colours[0]
+                #else:
+                #    pixColour = self.colours[1]"""
+                pass 
+                # Not counted for. 
+                # To have it randomly choose based on fgcc and bgcc uncomment the above.
+                # And move the nested try bellow and inline this one.
+            
+        if (not (0,0,0) in self.colours) and (0,0,0) in scolours:
+            # Does not help if one of the colours is black.
+            del scolours[(0,0,0)]
+        rtotal = 0
+        for colour in scolours:
+            rtotal += scolours[colour]
+        if rtotal != 1:
+            for colour in scolours:
+                scolours[colour] = 1/rtotal*scolours[colour]
+        rtotal = 0
+        rand = random()
+        for colour in scolours:
+            scolours[colour] += rtotal
+            rtotal = scolours[colour]
+            if rand < scolours[colour]:
+                self.pix[xy] = colour
+                break
+        return None
+            
+    def tree(self, xy, lvl=0):
+        """Grow from the xy."""
+        try:
+            if self.pix[xy] == (0, 0, 0):
+                self.pick(xy)
+                grow = [(xy[0], xy[1]-1), (xy[0]-1, xy[1]), (xy[0]+1, xy[1]), (xy[0], xy[1]+1)]
+                shuffle(grow)
+                if not lvl >= self.recursionlimit-20: 
+                # -10 seems to get it to not RecursionError out, just stack overflow crash when recursionlimit is above 2581.?
+                    for item in grow:
+                        self.tree(item, lvl+1)
+                return None
+            else:
+                return None
+        except IndexError:
+            return None
+       
+class Error(Exception):
+    """General error class."""
     
-    def __init__(self):
+    def __init__(self, msg=None):
         """Stuffs."""
-        pass
-    
-    def randomGen(self, iseeds=[], hight=1366, width=768, path="test.jpg", ext="JPEG", open=True):
-        """Randomly generate an image."""
-        
-        # Seeds 0, 1, 2 are for positive colour.
-        # Seeds 3, 4, 5 are for negative colour.
-        totalSeeds = 8
-        im = Image.new("RGB", (hight, width))
-        pix = im.load()
-        seeds = []
-        for seed in iseeds:
-            while seed > 1:
-                seed = seed / 10
-            seeds.append(seed)
-        if len(seeds) < totalSeeds:
-            seeds += [random() for x in range(totalSeeds - len(seeds))]
-        seedsRGB = [round(256*seed) for seed in seeds]
-        print(seedsRGB)
-        for x in range(hight):
-            for y in range(width):
-                # u: up | l: left | c: centre | d: down
-                # These cover the pixels already generated.
-                pixs = {}
-                try:
-                    pixs["ul"] = pix[x-1, y-1]
-                except IndexError:
-                    pixs["ul"] = False
-                try:
-                    pixs["cl"] = pix[x-1, y]
-                except IndexError:
-                    pixs["cl"] = False
-                try:
-                    pixs["dl"] = pix[x-1, y+1]
-                except IndexError:
-                    pixs["dl"] = False
-                try:
-                    pixs["cu"] = pix[x, y-1]
-                except IndexError:
-                    pixs["cu"] = False
-                colours = {}
-                for value in pixs:
-                    if not pixs[value]:
-                        r = random()
-                        if r < 1/8:
-                            pixs[value] = (seedsRGB[0], seedsRGB[1], seedsRGB[2])
-                        elif r < 2/8:
-                            pixs[value] = (seedsRGB[1], seedsRGB[2], seedsRGB[3])
-                        elif r < 3/8:
-                            pixs[value] = (seedsRGB[2], seedsRGB[3], seedsRGB[4])
-                        elif r < 4/8:
-                            pixs[value] = (seedsRGB[3], seedsRGB[4], seedsRGB[5])
-                        elif r < 5/8:
-                            pixs[value] = (seedsRGB[4], seedsRGB[5], seedsRGB[6])
-                        elif r < 6/8:
-                            pixs[value] = (seedsRGB[5], seedsRGB[6], seedsRGB[7])
-                        elif r < 7/8:
-                            pixs[value] = (seedsRGB[6], seedsRGB[7], seedsRGB[0])
-                        elif r < 8/8:
-                            pixs[value] = (seedsRGB[7], seedsRGB[0], seedsRGB[1])
-                    try:
-                        colours[pixs[value]] += 0.25
-                    except KeyError:
-                        colours[pixs[value]] = 0.25
-                total = 0
-                for value in colours:
-                    colours[value] += total
-                    total = colours[value]
-                place = random()
-                for value in colours:
-                    if place <= colours[value]:
-                        pix[x,y] = value
-                        print(value)
-                        
-        im.save(path, ext)
-        system(path)
-        
+        if not msg:
+            msg = self.__doc__
+        super(Error, self).__init__(msg)
+        self.msg = msg
+
+class InvalidArg(Error):
+    """An invalid arg was passed to a function or method."""
         
 if __name__ == "__main__":
     info = ["imGen, import to use.",
